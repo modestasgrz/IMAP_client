@@ -7,7 +7,7 @@ password = 'aguzvnmiqzmjusjr'
 
 imap_url = 'imap.mail.yahoo.com'
 
-attachment_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP\Attachments'
+attachment_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP_client\Attachments'
 
 def authenticate(user, password, imap_url):
     connection = imaplib.IMAP4_SSL(imap_url)
@@ -44,7 +44,7 @@ def get_attachments(msg):
         fileName = part.get_filename()
 
         if bool(fileName): #if attachment == False, the attachment isn't there
-            filePath = os.path.join(attachment_dir, fileName)
+            filePath = os.path.join(attachment_dir, "fileName.jpg")
             with open(filePath, 'wb') as f:
                 f.write(part.get_payload(decode=True))
 
@@ -55,7 +55,9 @@ connection.select('INBOX')
 get_bodies(get_emails(search('FROM', 'as', connection)))
 print(search('FROM', 'as', connection))
 
-result, data = connection.fetch('2', '(RFC822)')
-#print(email.message_from_bytes(data[0][1]))
-print(get_body(email.message_from_bytes(data[0][1])))
+result, data = connection.fetch('3', '(RFC822)')
+
+"""
+print(get_body(email.message_from_bytes(data[0][1])).decode())
 get_attachments(email.message_from_bytes(data[0][1]))
+"""

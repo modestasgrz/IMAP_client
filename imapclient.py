@@ -1,12 +1,16 @@
-import socket, ssl, time
+import socket, ssl
 import email
+import os
+from email.header import decode_header
 
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 1000000
 domainName = "imap.mail.yahoo.com"
 domainPort = 993 #993 - IMAP port for safe connections, use 143 for unsecured connections
 
 username = "mifktlab3@yahoo.com"
 password = "aguzvnmiqzmjusjr"
+
+attachment_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP_client\Attachments'
 
 
 def get_body(msg):
@@ -43,13 +47,31 @@ def list(reference, mailbox_name, socket):
 def fetch(num, flags, socket):
     cmd = "a FETCH " + str(num) + " " + flags + "\r\n" #constructs fetch command
     socket.send(cmd.encode())
-    return socket.recv(BUFFER_SIZE)
+    full_msg = b''
+    while True:
+        msg = securedSocket.recv(BUFFER_SIZE)
+        full_msg += msg
+        if msg.decode().__contains__("a OK FETCH completed"):
+            break
+    list_msg = full_msg.split(b'\r\n')
+    start = list_msg.pop(0)
+    end = list_msg.pop()
+    data = b'\r\n'.join(list_msg)
+    return start, end, data
 
 
 def search_value(flags, value, socket):
     cmd = "a SEARCH " + flags + ' "{}"'.format(value) + "\r\n"
     socket.send(cmd.encode())
-    return socket.recv(BUFFER_SIZE)
+    list_of_results = socket.recv(BUFFER_SIZE).split(b'\r\n')
+    list_of_results.pop()
+    search_result = list_of_results.pop()
+    search_data = list_of_results.pop()
+    search_data = search_data.split(b' ')
+    search_data.pop(0) #starting sterisk pop out
+    search_data.pop(0) #earch command pop out
+    search_data.pop() #ending space pop out
+    return search_result, search_data
 
 
 def search(flags, socket):
@@ -58,14 +80,29 @@ def search(flags, socket):
     return socket.recv(BUFFER_SIZE)
 
 
-def extractReceived(msg):
-    list = msg.split(b'\r\n')
-    del list[0]
-    new_string = ""
-    for item in list:
-        stritem = str(item).replace('b\'', '')
-        new_string += (stritem + str('\r\n'))
-    return new_string
+def get_attachments(msg):
+    for part in msg.walk():
+        if part.get_content_maintype() == 'multipart':
+            continue
+        if part.get('Content-Disposition') is None:
+            continue
+        fileName = part.get_filename()
+
+        if bool(fileName): #if attachment == False, the attachment isn't there
+            if decode_header(fileName)[0][1] is not None:
+                fileName = decode_header(fileName)[0][0].decode(decode_header(fileName)[0][1])
+            filePath = os.path.join(attachment_dir, fileName)
+            with open(filePath, 'wb') as f:
+                f.write(part.get_payload(decode=True))
+
+
+def list_emails(search_value):
+    result, data = search_value
+    for i in data:  # this loop works only for search command for now
+        num = i.decode()
+        start, end, data = fetch(num, '(RFC822)', securedSocket)
+        print(get_body(email.message_from_bytes(data)))
+        get_attachments(email.message_from_bytes(data))
 
 
 clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -77,19 +114,6 @@ print(login(username, password, securedSocket))
 print(namespace(securedSocket))
 print(list('', '*', securedSocket))
 print(select('INBOX', securedSocket))
-print(fetch('1:*', '(BODY[HEADER.FIELDS (Subject)])', securedSocket))
-print(search('UNSEEN', securedSocket))
-print(search_value('FROM', 'as', securedSocket)) #Search with value
 
+list_emails(search_value('FROM', 'as', securedSocket))
 
-msg = fetch('3', 'BODY[TEXT]', securedSocket)
-print(get_body(email.message_from_string(extractReceived(msg))).decode())
-
-#print(msg)
-"""
-msg1 = extractReceived(fakeBodyList)
-
-print('\n')
-print(get_body(email.message_from_string(msg1)).decode().split('\r\n')[8]) #Contents of email body, works if every message looks analogically
-"""
-#If email has picture, contents of a body index 8, else - 4

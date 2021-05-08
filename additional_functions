@@ -1,0 +1,25 @@
+def extractReceived(msg):
+    list = msg.split(b'\r\n')
+    del list[0]
+    new_string = ""
+    for item in list:
+        stritem = str(item).replace('b\'', '')
+        new_string += (stritem + str('\r\n'))
+    return new_string
+	
+
+def get_body_and_contents(msg):
+    list_of_contents = get_full_body(email.message_from_string(extractReceived(msg))).decode().split('\r\n\'')
+    #print(len(list_of_contents))
+    if len(list_of_contents) == 5: #if message has an attachment, it splits into 5 parts, the last (5) is attachment, the third (3), contains body message, forth(4) contains filename - need to extract it
+        print(list_of_contents[2])
+        attachment = list_of_contents[4].encode()
+        filePath = os.path.join(attachment_dir, 'attachment.jpg')
+        with (open(filePath, 'wb')) as fd:
+            fd.write(attachment)
+    else:
+        if len(list_of_contents) == 1:
+            print(list_of_contents)
+        else:
+            print(len(list_of_contents))
+            print(list_of_contents[1]) #if message does not have attachments, it splits into 4 parts and second (2) part has an attachment
