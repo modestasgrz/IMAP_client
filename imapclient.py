@@ -2,6 +2,7 @@ import socket, ssl
 import email
 import os
 from email.header import decode_header
+from email.parser import HeaderParser
 
 BUFFER_SIZE = 1000000
 domainName = "imap.mail.yahoo.com"
@@ -45,19 +46,25 @@ def list(reference, mailbox_name, socket):
 
 
 def fetch(num, flags, socket):
-    cmd = "a FETCH " + str(num) + " " + flags + "\r\n" #constructs fetch command
-    socket.send(cmd.encode())
-    full_msg = b''
-    while True:
-        msg = securedSocket.recv(BUFFER_SIZE)
-        full_msg += msg
-        if msg.decode().__contains__("a OK FETCH completed"):
-            break
-    list_msg = full_msg.split(b'\r\n')
-    start = list_msg.pop(0)
-    end = list_msg.pop()
-    data = b'\r\n'.join(list_msg)
-    return start, end, data
+    try:
+        cmd = "a FETCH " + str(num) + " " + flags + "\r\n" #constructs fetch command
+        socket.send(cmd.encode())
+        full_msg = b''
+        while True:
+            msg = securedSocket.recv(BUFFER_SIZE)
+            full_msg += msg
+            if msg.decode().__contains__("a BAD") or msg.decode().__contains__("a NO"):
+                raise PermissionError("Permission denied by server. Error in syntax or something else...")
+            if msg.decode().__contains__("a OK FETCH completed"):
+                break
+        list_msg = full_msg.split(b'\r\n')
+        start = list_msg.pop(0)
+        end = list_msg.pop()
+        data = b'\r\n'.join(list_msg)
+        return start, end, data
+    except PermissionError as e:
+        print(e)
+        return None
 
 
 def search_value(flags, value, socket):
@@ -94,26 +101,47 @@ def get_attachments(msg):
             filePath = os.path.join(attachment_dir, fileName)
             with open(filePath, 'wb') as f:
                 f.write(part.get_payload(decode=True))
+            return True
+        else:
+            return False
 
 
 def list_emails(search_value):
+    parser = email.parser.HeaderParser()
     result, data = search_value
     for i in data:  # this loop works only for search command for now
         num = i.decode()
         start, end, data = fetch(num, '(RFC822)', securedSocket)
-        print(get_body(email.message_from_bytes(data)))
-        get_attachments(email.message_from_bytes(data))
+        headers = parser.parsestr(email.message_from_bytes(data).as_string())
+        print_headers(headers)
+        print("Body: " + get_body(email.message_from_bytes(data)).decode())
+        if(get_attachments(email.message_from_bytes(data))):
+            print("Attachments have been placed in " + attachment_dir)
+
+
+def print_headers(headers):
+    print('\r\n')
+    for h in headers.items():
+        if h[0] == 'Date':
+            print("Date: " + h[1])
+        if h[0] == 'From':
+            print("From " + h[1])
+        if h[0] == 'To':
+            print("To: " + h[1])
+        if h[0] == 'Subject':
+            print("Subject: " + h[1])
 
 
 clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 clientSocket.connect((domainName, domainPort))
 securedSocket = ssl.create_default_context().wrap_socket(clientSocket, server_hostname = domainName)
-print(securedSocket.recv(BUFFER_SIZE))
+acknowledgement_message = securedSocket.recv(BUFFER_SIZE) #This can printed
 
-print(login(username, password, securedSocket))
-print(namespace(securedSocket))
-print(list('', '*', securedSocket))
-print(select('INBOX', securedSocket))
+#All of those can be printed to console
+login(username, password, securedSocket)
+namespace(securedSocket)
+list('', '*', securedSocket)
+select('INBOX', securedSocket)
 
-list_emails(search_value('FROM', 'as', securedSocket))
-
+#lists all emails with date, from, to, subject headers, body content and attachments
+list_emails(search_value('FROM', '', securedSocket))
