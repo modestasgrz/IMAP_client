@@ -3,6 +3,8 @@ import email
 import os
 from email.header import decode_header
 from email.parser import HeaderParser
+import tkinter as tk
+from tkinter.filedialog import askopenfile
 
 BUFFER_SIZE = 1000000
 domainName = "imap.mail.yahoo.com"
@@ -106,19 +108,6 @@ def get_attachments(msg):
             return False
 
 
-def list_emails(search_value):
-    parser = email.parser.HeaderParser()
-    result, data = search_value
-    for i in data:  # this loop works only for search command for now
-        num = i.decode()
-        start, end, data = fetch(num, '(RFC822)', securedSocket)
-        headers = parser.parsestr(email.message_from_bytes(data).as_string())
-        print_headers(headers)
-        print("Body: " + get_body(email.message_from_bytes(data)).decode())
-        if(get_attachments(email.message_from_bytes(data))):
-            print("Attachments have been placed in " + attachment_dir)
-
-
 def print_headers(headers):
     print('\r\n')
     for h in headers.items():
@@ -132,11 +121,25 @@ def print_headers(headers):
             print("Subject: " + h[1])
 
 
+def list_emails(search_value):
+    parser = email.parser.HeaderParser()
+    result, data = search_value
+    for i in data:  # this loop works only for search command for now
+        num = i.decode()
+        start, end, data = fetch(num, '(RFC822)', securedSocket)
+        headers = parser.parsestr(email.message_from_bytes(data).as_string())
+        print_headers(headers)
+        print("Body: " + get_body(email.message_from_bytes(data)).decode())
+        if(get_attachments(email.message_from_bytes(data))):
+            print("Attachments have been placed in " + attachment_dir)
+
+
 clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 clientSocket.connect((domainName, domainPort))
 securedSocket = ssl.create_default_context().wrap_socket(clientSocket, server_hostname = domainName)
 acknowledgement_message = securedSocket.recv(BUFFER_SIZE) #This can printed
 
+"""
 #All of those can be printed to console
 login(username, password, securedSocket)
 namespace(securedSocket)
@@ -145,3 +148,36 @@ select('INBOX', securedSocket)
 
 #lists all emails with date, from, to, subject headers, body content and attachments
 list_emails(search_value('FROM', '', securedSocket))
+"""
+
+"""
+GUI section ----------------------------------------------------------------------------------
+"""
+
+
+def open_file():
+    button_text.set("Clicked")
+    file = askopenfile(parent=gui_root, mode='rb', title='Choose a file', filetype=[("Pdf file", "*.pdf")])
+    if file:
+        print("File was sucessfuly loaded")
+
+
+gui_root = tk.Tk()
+
+gui_root.wm_title("IMAP client")
+
+canvas = tk.Canvas(gui_root, width=1200, height=600)
+canvas.grid(columnspan=3, rowspan=3)
+
+#label
+label = tk.Label(gui_root, text="This is an IMAP client", font="Raleway, 18")
+label.grid(column=1, row=0)
+
+#button
+button_text = tk.StringVar()
+#fg - font color, bg - background color
+button_button = tk.Button(gui_root, textvariable=button_text, command=lambda:open_file(), font="Raleway, 14", bg="#FEFEFE", fg="#20bebe", height=1, width=15)
+button_text.set("Simple Button")
+button_button.grid(column=1, row=2)
+
+gui_root.mainloop()
