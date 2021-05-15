@@ -139,13 +139,13 @@ clientSocket.connect((domainName, domainPort))
 securedSocket = ssl.create_default_context().wrap_socket(clientSocket, server_hostname = domainName)
 acknowledgement_message = securedSocket.recv(BUFFER_SIZE) #This can printed
 
-"""
+
 #All of those can be printed to console
 login(username, password, securedSocket)
 namespace(securedSocket)
-list('', '*', securedSocket)
+#list('', '*', securedSocket)
 select('INBOX', securedSocket)
-
+"""
 #lists all emails with date, from, to, subject headers, body content and attachments
 list_emails(search_value('FROM', '', securedSocket))
 """
@@ -155,29 +155,96 @@ GUI section --------------------------------------------------------------------
 """
 
 
+class Email:
+    def __init__(self, h_date, h_from, h_to, h_subject, h_body, h_attachment_msg):
+        self.h_date = h_date
+        self.h_from = h_from
+        self.h_to = h_to
+        self.h_subject = h_subject
+        self.h_body = h_body
+        self.h_attachment_msg = h_attachment_msg
+
+    def show(self):
+        message_window = tk.Tk()
+
+        message_window.wm_title(self.h_subject)
+        date_label = tk.Label(message_window, text="Date: " + self.h_date, font="Raleway, 12")
+        date_label.grid(row=0, sticky="w")
+        from_label = tk.Label(message_window, text="From: " + self.h_from, font="Raleway, 12")
+        from_label.grid(row=1, sticky="w")
+        to_label = tk.Label(message_window, text="To: " + self.h_to, font="Raleway, 12")
+        to_label.grid(row=2, sticky="w")
+        subject_label = tk.Label(message_window, text="Subject: " + self.h_subject, font="Raleway, 12")
+        subject_label.grid(row=3, sticky="w")
+        body_text_anchor = "Body---------------------------------------------------------------------------------------------------"
+        body_label = tk.Label(message_window, text=body_text_anchor, font="Raleway, 12")
+        body_label.grid(row=4, sticky="w")
+        body_box = tk.Text(message_window, height=10, width=60)
+        body_box.insert(1.0, self.h_body)
+        body_box.grid(row=5, pady=(5, 5))
+        if self.h_attachment_msg is not None:
+            attachment_label = tk.Label(message_window, text=self.h_attachment_msg, font="Raleway, 9")
+            attachment_label.grid(row=6)
+
+        message_window.mainloop()
+
+
 def open_file():
-    button_text.set("Clicked")
     file = askopenfile(parent=gui_root, mode='rb', title='Choose a file', filetype=[("Pdf file", "*.pdf")])
     if file:
         print("File was sucessfuly loaded")
 
 
+def collect_emails(search_value):
+    parser = email.parser.HeaderParser()
+    result, data = search_value
+    collected_emails = []
+    for i in data: #this loop only works for search command
+        num = i.decode()
+        start, end, data = fetch(num, '(RFC822)', securedSocket)
+        headers = parser.parsestr(email.message_from_bytes(data).as_string())
+        date_text = None
+        from_text = None
+        to_text = None
+        subject_text = None
+        attachment_text = None
+        for h in headers.items():
+            if h[0] == 'Date':
+                date_text = str(h[1])
+            if h[0] == 'From':
+                from_text = str(h[1])
+            if h[0] == 'To':
+                to_text = str(h[1])
+            if h[0] == 'Subject':
+                subject_text = str(h[1])
+
+        if (get_attachments(email.message_from_bytes(data))):
+            attachment_text = "Attachments have been placed in " + attachment_dir
+        body_text = get_body(email.message_from_bytes(data)).decode()
+        email_obj = Email(date_text, from_text, to_text, subject_text, body_text, attachment_text)
+        collected_emails.append(email_obj)
+    return collected_emails
+
+
+def list_emails_to_gui(emails):
+    for e in emails:
+        columns, rows = gui_root.grid_size()
+        label = tk.Label(gui_root, text=e.h_subject, font="Raleway 12")
+        label.grid(column=0, row=rows, padx=(20, 20))
+        label = tk.Label(gui_root, text=e.h_date, font="Raleway 12")
+        label.grid(column=1, row=rows, padx=(20, 20))
+        button = tk.Button(gui_root, text='View Message', command=e.show, font="Raleway, 14", bg="#FEFEFE", fg="#20bebe", height=1, width=15)
+        button.grid(column=2, row=rows, padx=(20, 20))
+
+
 gui_root = tk.Tk()
-
 gui_root.wm_title("IMAP client")
-
-canvas = tk.Canvas(gui_root, width=1200, height=600)
-canvas.grid(columnspan=3, rowspan=3)
+#gui_root.wm_grid(baseWidth=1200, baseHeight=600, widthInc=1200, heightInc=600)
 
 #label
-label = tk.Label(gui_root, text="This is an IMAP client", font="Raleway, 18")
-label.grid(column=1, row=0)
+label = tk.Label(gui_root, text="IMAP client", font="Raleway, 18")
+label.grid(column=1, row=0, pady=(10, 20))
 
-#button
-button_text = tk.StringVar()
-#fg - font color, bg - background color
-button_button = tk.Button(gui_root, textvariable=button_text, command=lambda:open_file(), font="Raleway, 14", bg="#FEFEFE", fg="#20bebe", height=1, width=15)
-button_text.set("Simple Button")
-button_button.grid(column=1, row=2)
+list_emails_to_gui(collect_emails(search_value('FROM', '', securedSocket)))
 
 gui_root.mainloop()
