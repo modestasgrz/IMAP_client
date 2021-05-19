@@ -14,6 +14,7 @@ domainPort = 993 #993 - IMAP port for safe connections, use 143 for unsecured co
 username = "mifktlab3@yahoo.com"
 password = "aguzvnmiqzmjusjr"
 
+project_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP_client'
 attachment_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP_client\Attachments'
 email_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP_client\Emails'
 
@@ -254,14 +255,14 @@ def download_checked():
     for file in os.listdir(email_dir):
         os.remove(os.path.join(email_dir, file))
     columns, rows = gui_root.grid_size()
-    label = tk.Label(gui_root, text='Emails were paced in: ', font="Raleway, 11")
-    label.grid(column=0, row=rows)
+    label = tk.Label(gui_root, text='Emails were packed in: ' + project_dir, font="Raleway, 11")
+    label.grid(column=0, columnspan=3, sticky="w", row=rows, padx=(20, 20))
 
 
 def place_download_button():
     columns, rows = gui_root.grid_size()
     button = tk.Button(gui_root, text='Download Checked Messages', command=download_checked, font="Raleway, 14", bg="#fefefe", fg="#20bebe", height=1, width=30)
-    button.grid(row=rows, padx=(20, 20))
+    button.grid(column=0, columnspan=2, row=rows, padx=(20, 20))
 
 gui_root = tk.Tk()
 gui_root.wm_title("IMAP client")
