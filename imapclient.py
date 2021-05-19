@@ -93,6 +93,7 @@ def search(flags, socket):
 
 
 def get_attachments(msg):
+    attachment_exists = False
     for part in msg.walk():
         if part.get_content_maintype() == 'multipart':
             continue
@@ -106,9 +107,8 @@ def get_attachments(msg):
             filePath = os.path.join(attachment_dir, fileName)
             with open(filePath, 'wb') as f:
                 f.write(part.get_payload(decode=True))
-            return True
-        else:
-            return False
+            attachment_exists = True
+    return attachment_exists
 
 
 def print_headers(headers):
@@ -148,10 +148,10 @@ login(username, password, securedSocket)
 namespace(securedSocket)
 #list('', '*', securedSocket)
 select('INBOX', securedSocket)
-"""
+
 #lists all emails with date, from, to, subject headers, body content and attachments
-list_emails(search_value('FROM', '', securedSocket))
-"""
+#list_emails(search_value('FROM', '', securedSocket))
+
 
 """
 GUI section ----------------------------------------------------------------------------------
@@ -263,6 +263,7 @@ def place_download_button():
     columns, rows = gui_root.grid_size()
     button = tk.Button(gui_root, text='Download Checked Messages', command=download_checked, font="Raleway, 14", bg="#fefefe", fg="#20bebe", height=1, width=30)
     button.grid(column=0, columnspan=2, row=rows, padx=(20, 20))
+
 
 gui_root = tk.Tk()
 gui_root.wm_title("IMAP client")
