@@ -5,6 +5,7 @@ from email.header import decode_header
 from email.parser import HeaderParser
 import tkinter as tk
 from tkinter.filedialog import askopenfile
+import shutil
 
 BUFFER_SIZE = 1000000
 domainName = "imap.mail.yahoo.com"
@@ -14,6 +15,7 @@ username = "mifktlab3@yahoo.com"
 password = "aguzvnmiqzmjusjr"
 
 attachment_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP_client\Attachments'
+email_dir = 'D:\Modesto\VU\Kompiuteriu_tinklai\Lab3\IMAP_client\Emails'
 
 
 def get_body(msg):
@@ -156,13 +158,15 @@ GUI section --------------------------------------------------------------------
 
 
 class Email:
-    def __init__(self, h_date, h_from, h_to, h_subject, h_body, h_attachment_msg):
+    def __init__(self, h_date, h_from, h_to, h_subject, h_body, h_attachment_msg, full_eml):
         self.h_date = h_date
         self.h_from = h_from
         self.h_to = h_to
         self.h_subject = h_subject
         self.h_body = h_body
         self.h_attachment_msg = h_attachment_msg
+        self.full_eml = full_eml
+        self.check_var = tk.IntVar()
 
     def show(self):
         message_window = tk.Tk()
@@ -192,7 +196,7 @@ class Email:
 def open_file():
     file = askopenfile(parent=gui_root, mode='rb', title='Choose a file', filetype=[("Pdf file", "*.pdf")])
     if file:
-        print("File was sucessfuly loaded")
+        print("File was successfully loaded")
 
 
 def collect_emails(search_value):
@@ -221,7 +225,8 @@ def collect_emails(search_value):
         if (get_attachments(email.message_from_bytes(data))):
             attachment_text = "Attachments have been placed in " + attachment_dir
         body_text = get_body(email.message_from_bytes(data)).decode()
-        email_obj = Email(date_text, from_text, to_text, subject_text, body_text, attachment_text)
+        full_eml = data
+        email_obj = Email(date_text, from_text, to_text, subject_text, body_text, attachment_text, full_eml)
         collected_emails.append(email_obj)
     return collected_emails
 
@@ -229,13 +234,34 @@ def collect_emails(search_value):
 def list_emails_to_gui(emails):
     for e in emails:
         columns, rows = gui_root.grid_size()
+        checkbox = tk.Checkbutton(gui_root, variable=e.check_var)
+        checkbox.grid(column=0, row=rows, padx=(20, 20))
         label = tk.Label(gui_root, text=e.h_subject, font="Raleway 12")
-        label.grid(column=0, row=rows, padx=(20, 20))
-        label = tk.Label(gui_root, text=e.h_date, font="Raleway 12")
         label.grid(column=1, row=rows, padx=(20, 20))
+        label = tk.Label(gui_root, text=e.h_date, font="Raleway 12")
+        label.grid(column=2, row=rows, padx=(20, 20))
         button = tk.Button(gui_root, text='View Message', command=e.show, font="Raleway, 14", bg="#FEFEFE", fg="#20bebe", height=1, width=15)
-        button.grid(column=2, row=rows, padx=(20, 20))
+        button.grid(column=3, row=rows, padx=(20, 20))
 
+
+def download_checked():
+    for e in emails:
+        if e.check_var.get() == 1:
+            filename = '%s.eml' % os.path.join(email_dir, e.h_subject)
+            with open(filename, 'wb') as fd:
+                fd.write(e.full_eml)
+    shutil.make_archive('emails', 'zip', email_dir)
+    for file in os.listdir(email_dir):
+        os.remove(os.path.join(email_dir, file))
+    columns, rows = gui_root.grid_size()
+    label = tk.Label(gui_root, text='Emails were paced in: ', font="Raleway, 11")
+    label.grid(column=0, row=rows)
+
+
+def place_download_button():
+    columns, rows = gui_root.grid_size()
+    button = tk.Button(gui_root, text='Download Checked Messages', command=download_checked, font="Raleway, 14", bg="#fefefe", fg="#20bebe", height=1, width=30)
+    button.grid(row=rows, padx=(20, 20))
 
 gui_root = tk.Tk()
 gui_root.wm_title("IMAP client")
@@ -245,6 +271,8 @@ gui_root.wm_title("IMAP client")
 label = tk.Label(gui_root, text="IMAP client", font="Raleway, 18")
 label.grid(column=1, row=0, pady=(10, 20))
 
-list_emails_to_gui(collect_emails(search_value('FROM', '', securedSocket)))
+emails = collect_emails(search_value('FROM', '', securedSocket))
+list_emails_to_gui(emails)
+place_download_button()
 
 gui_root.mainloop()
